@@ -1,17 +1,52 @@
 import numpy as np
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
+import jax
+import jax.numpy as jnp
+from jax import grad, jit
+
+
+class ADAM:
+    def __init__(self, learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-8):
+        self.lr = learning_rate
+        self.beta1 = beta1
+        self.beta2 = beta2
+        self.epsilon = epsilon
+        self.m = None
+        self.v = None
+        self.t = 0
+
+    def update(self, gradients, params):
+        if self.m is None:
+            self.m = jnp.zeros_like(params)
+        if self.v is None:
+            self.v = jnp.zeros_like(params)
+        
+        self.t += 1
+        self.m = self.beta1 * self.m + (1 - self.beta1) * gradients
+        self.v = self.beta2 * self.v + (1 - self.beta2) * (gradients ** 2)
+        
+        # Bias-corrected moments
+        m_hat = self.m / (1 - self.beta1 ** self.t)
+        v_hat = self.v / (1 - self.beta2 ** self.t)
+        
+        # Update parameters
+        params -= self.lr * m_hat / (jnp.sqrt(v_hat) + self.epsilon)
+        
+        return params
+
+        
 class RBF_Kernel:
     def __init__(self, X):
         self.X = X  
-        self.kernel = np.zeros((X.shape[0], X.shape[0]))
+        self.kernel = jnp.zeros((X.shape[0], X.shape[0]))
 
     def make_kernel(self, l=1, sigma=0):
         for i in range(self.kernel.shape[0]):
             for j in range(self.kernel.shape[1]):
-                self.kernel[i, j] = self.Kernel(self.X[i], self.X[j])(l)
+                self.kernel = self.kernel.at[i, j].set(self.Kernel(self.X[i], self.X[j])(l))
 
-        return self.kernel + sigma * np.eye(len(self.kernel))
+        return self.kernel + sigma * jnp.eye(len(self.kernel))
 
     class Kernel:
         def __init__(self, x_n, x_m):
@@ -19,41 +54,63 @@ class RBF_Kernel:
             self.x_m = x_m
 
         def __call__(self, l=1):
-            # RBF Kernel
-            K = np.exp(-np.linalg.norm(self.x_n - self.x_m)**2 / (2 * l**2))
+            # RBF Kernel using JAX
+            K = jnp.exp(-jnp.linalg.norm(self.x_n - self.x_m)**2 / (2 * l**2))
             return K
 
 
+
 class GaussianProcess:
-    def __init__(self, X, y, l=1.0, sigma_n=1e-8, sigma_f=1.0):
+    def __init__(self, X, y, optimizer, l=1.0, sigma_n=1e-8, sigma_f=1.0):
         self.X = X
         self.y = y
+        self.optimizer = optimizer
         self.l = l  # Initial length scale
         self.sigma_n = sigma_n  # Initial noise variance
         self.sigma_f = sigma_f  # Initial signal variance
         self.K = self.compute_kernel(self.X, self.l, self.sigma_n)
 
     def compute_kernel(self, X, l, sigma_n):
-        # Use the RBF_Kernel class to compute the kernel
         rbf_kernel = RBF_Kernel(X)
         return rbf_kernel.make_kernel(l=l, sigma=sigma_n)
 
     def negative_log_likelihood(self, params):
         l, sigma_f, sigma_n = params
-        K = self.compute_kernel(self.X, l, sigma_n) + sigma_f**2 * np.eye(len(self.X))
-        L = np.linalg.cholesky(K + 1e-6 * np.eye(len(self.X)))  # Add jitter for numerical stability
-        alpha = np.linalg.solve(L.T, np.linalg.solve(L, self.y))
+        K = self.compute_kernel(self.X, l, sigma_n) + sigma_f**2 * jnp.eye(len(self.X))
+        L = jnp.linalg.cholesky(K + 1e-6 * jnp.eye(len(self.X)))  # Use JAX's Cholesky
 
-        # Log marginal likelihood
-        return 0.5 * np.dot(self.y.T, alpha) + np.sum(np.log(np.diagonal(L))) + 0.5 * len(self.X) * np.log(2 * np.pi)
+        alpha = jax.scipy.linalg.solve_triangular(L.T, jax.scipy.linalg.solve_triangular(L, self.y, lower=True), lower=False)
+
+        return 0.5 * jnp.dot(self.y.T, alpha) + jnp.sum(jnp.log(jnp.diagonal(L))) + 0.5 * len(self.X) * jnp.log(2 * jnp.pi)
+
+    def fit(self):
+        if self.optimizer == "L-BFGS-B":
+            result = minimize(self.negative_log_likelihood, x0=[self.l, self.sigma_f, self.sigma_n], 
+                            bounds=[(1e-5, None), (1e-5, None), (1e-5, None)], method=self.optimizer)
+            self.l, self.sigma_f, self.sigma_n = result.x
+            
+        elif self.optimizer == "ADAM":
+            self.adam_optimizer = ADAM(learning_rate=0.01)
+            result = self.optimise()
+            self.l, self.sigma_f, self.sigma_n = result
+            
+        self.K = self.compute_kernel(self.X, self.l, self.sigma_n) + self.sigma_f**2 * jnp.eye(len(self.X))
+        print(f"Training complete. Optimal length scale: {self.l:.2f}, Signal variance: {self.sigma_f:.2f}, Noise variance: {self.sigma_n:.2f}")
+
 
     def fit(self):
         # Optimize hyperparameters l, sigma_f, and sigma_n
-        result = minimize(self.negative_log_likelihood, x0=[self.l, self.sigma_f, self.sigma_n], 
-                          bounds=[(1e-5, None), (1e-5, None), (1e-5, None)], method='L-BFGS-B')
-        self.l, self.sigma_f, self.sigma_n = result.x
+        if self.optimizer == "L-BFGS-B":
+            result = minimize(self.negative_log_likelihood, x0=[self.l, self.sigma_f, self.sigma_n], 
+                            bounds=[(1e-5, None), (1e-5, None), (1e-5, None)], method = self.optimizer)
+            self.l, self.sigma_f, self.sigma_n = result.x
+        elif self.optimizer == "ADAM":
+            self.adam_optimizer = ADAM(learning_rate=0.01)
+            result = self.optimise()
+            self.l, self.sigma_f, self.sigma_n = result
+            
         self.K = self.compute_kernel(self.X, self.l, self.sigma_n) + self.sigma_f**2 * np.eye(len(self.X))
-        print("Training complete. Optimal length scale: {:.2f}, Signal variance: {:.2f}, Noise variance: {:.2f}")
+        print(f"Training complete. Optimal length scale: {self.l:.2f}, Signal variance: {self.sigma_f:.2f}, Noise variance: {self.sigma_n:.2f}")
 
     def predict(self, X_new):
         K_new = self.compute_kernel(np.vstack([self.X, X_new]), self.l, self.sigma_n)
@@ -70,7 +127,21 @@ class GaussianProcess:
         # Compute the variance of the prediction for X_new
         var = K_new[-1, -1] - np.dot(v.T, v)
         
-        return mean, np.sqrt(var)
+        return mean, var
+    
+    def optimise(self, max_iter=1000):
+        # Ensure the parameters are JAX arrays
+        params = jnp.array([self.l, self.sigma_f, self.sigma_n])
+        
+        # JIT compile the value and gradient computation
+        value_and_grad = jax.jit(jax.value_and_grad(self.negative_log_likelihood))
+
+        for i in range(max_iter):
+            val, gradients = value_and_grad(params)
+            params = self.adam_optimizer.update(gradients, params)
+            
+        return params  
+
 
     def plot(self, f=None, x_range=(0, 10), n_points=1000, xlabel="$x$", ylabel="$f(x)$", title="GP Regression", legend_labels=None):
         # Generate the test points (x) in the specified range
@@ -147,7 +218,7 @@ if __name__ == "__main__":
     true_function = np.sin
 
     # Plot the GP regression results
-    gp.plot(f=true_function, x_range=(-5, 5), n_points=1000, 
+    '''gp.plot(f=true_function, x_range=(-5, 5), n_points=1000, 
             xlabel="X", ylabel="y", 
             title="GP Regression on Sinusoidal Data", 
-            legend_labels=["True Function (sin)", "Training Data", "GP Mean", "95% Confidence Interval"])
+            legend_labels=["True Function (sin)", "Training Data", "GP Mean", "95% Confidence Interval"])'''
