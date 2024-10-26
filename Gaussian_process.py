@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import jax
 import jax.numpy as jnp
 from jax import grad, jit
-
+import time
 
 class ADAM:
     def __init__(self, learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-8):
@@ -58,8 +58,6 @@ class RBF_Kernel:
             K = jnp.exp(-jnp.linalg.norm(self.x_n - self.x_m)**2 / (2 * l**2))
             return K
 
-
-
 class GaussianProcess:
     def __init__(self, X, y, optimizer, l=1.0, sigma_n=1e-8, sigma_f=1.0):
         self.X = X
@@ -85,8 +83,11 @@ class GaussianProcess:
 
     def fit(self):
         if self.optimizer == "L-BFGS-B":
-            result = minimize(self.negative_log_likelihood, x0=[self.l, self.sigma_f, self.sigma_n], 
-                            bounds=[(1e-5, None), (1e-5, None), (1e-5, None)], method=self.optimizer)
+            result = minimize(self.negative_log_likelihood, x0=[self.l, self.sigma_f, self.sigma_n], method=self.optimizer)
+            self.l, self.sigma_f, self.sigma_n = result.x
+
+        elif self.optimizer == "CG":
+            result = minimize(self.negative_log_likelihood, x0=[self.l, self.sigma_f, self.sigma_n], method=self.optimizer)
             self.l, self.sigma_f, self.sigma_n = result.x
             
         elif self.optimizer == "ADAM":
@@ -94,23 +95,11 @@ class GaussianProcess:
             result = self.optimise()
             self.l, self.sigma_f, self.sigma_n = result
             
+        
+
         self.K = self.compute_kernel(self.X, self.l, self.sigma_n) + self.sigma_f**2 * jnp.eye(len(self.X))
         print(f"Training complete. Optimal length scale: {self.l:.2f}, Signal variance: {self.sigma_f:.2f}, Noise variance: {self.sigma_n:.2f}")
 
-
-    def fit(self):
-        # Optimize hyperparameters l, sigma_f, and sigma_n
-        if self.optimizer == "L-BFGS-B":
-            result = minimize(self.negative_log_likelihood, x0=[self.l, self.sigma_f, self.sigma_n], 
-                            bounds=[(1e-5, None), (1e-5, None), (1e-5, None)], method = self.optimizer)
-            self.l, self.sigma_f, self.sigma_n = result.x
-        elif self.optimizer == "ADAM":
-            self.adam_optimizer = ADAM(learning_rate=0.01)
-            result = self.optimise()
-            self.l, self.sigma_f, self.sigma_n = result
-            
-        self.K = self.compute_kernel(self.X, self.l, self.sigma_n) + self.sigma_f**2 * np.eye(len(self.X))
-        print(f"Training complete. Optimal length scale: {self.l:.2f}, Signal variance: {self.sigma_f:.2f}, Noise variance: {self.sigma_n:.2f}")
 
     def predict(self, X_new):
         K_new = self.compute_kernel(np.vstack([self.X, X_new]), self.l, self.sigma_n)
@@ -129,19 +118,39 @@ class GaussianProcess:
         
         return mean, var
     
-    def optimise(self, max_iter=1000):
+    def optimise(self, max_iter=10000, Plot_Hist=False):
         # Ensure the parameters are JAX arrays
         params = jnp.array([self.l, self.sigma_f, self.sigma_n])
         
         # JIT compile the value and gradient computation
         value_and_grad = jax.jit(jax.value_and_grad(self.negative_log_likelihood))
+        #Track loss history
+        loss_history = []
+        time_history_ADAM = []
+        start = time.time() 
+        
 
+        time_budget = 10.
         for i in range(max_iter):
             val, gradients = value_and_grad(params)
             params = self.adam_optimizer.update(gradients, params)
-            
-        return params  
+            loss_history.append(val)
+            time_history_ADAM.append(time.time() - start)
 
+            if time.time() - start > time_budget:
+                break
+        # Plot the loss history
+        if Plot_Hist:
+            plt.figure(figsize=(10, 6))
+            plt.plot(time_history_ADAM, loss_history, lw=2)
+            plt.yscale("log")
+            plt.legend()
+            plt.xlabel("Time (s)")
+            plt.ylabel("Loss")
+            plt.grid()
+            plt.title("Adam optimizer")
+            plt.show()
+        return params
 
     def plot(self, f=None, x_range=(0, 10), n_points=1000, xlabel="$x$", ylabel="$f(x)$", title="GP Regression", legend_labels=None):
         # Generate the test points (x) in the specified range
