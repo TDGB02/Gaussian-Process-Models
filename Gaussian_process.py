@@ -199,8 +199,8 @@ class SparseGaussianProcess:
         self.sigma_f = sigma_f  # Initial signal variance
         self.K = self.compute_kernel(self.X, self.l, self.sigma_n)
 
-    def compute_kernel(self, X, l, sigma_n):
-        rbf_kernel = RBF_Kernel(X)
+    def compute_kernel(self, Z, l, sigma_n):
+        rbf_kernel = RBF_Kernel(Z)
         return rbf_kernel.make_kernel(l=l, sigma=sigma_n)
 
     def negative_log_likelihood(self, params):
@@ -228,16 +228,16 @@ class SparseGaussianProcess:
             
         
 
-        self.K = self.compute_kernel(self.X, self.l, self.sigma_n) + self.sigma_f**2 * jnp.eye(len(self.X))
+        self.K = self.compute_kernel(self.Z, self.l, self.sigma_n) + self.sigma_f**2 * jnp.eye(len(self.Z))
         print(f"Training complete. Optimal length scale: {self.l:.2f}, Signal variance: {self.sigma_f:.2f}, Noise variance: {self.sigma_n:.2f}")
 
 
     def predict(self, X_new):
-        K_new = self.compute_kernel(np.vstack([self.X, X_new]), self.l, self.sigma_n)
-        K = K_new[:len(self.X), :len(self.X)] 
-        k = K_new[:len(self.X), -1]  
+        K_new = self.compute_kernel(np.vstack([self.Z, X_new]), self.l, self.sigma_n)
+        K = K_new[:len(self.Z), :len(self.Z)] 
+        k = K_new[:len(self.Z), -1]  
         # Cholesky decomposition of the kernel matrix K
-        L = np.linalg.cholesky(K + 1e-6 * np.eye(len(self.X)))  # Add jitter for stability
+        L = np.linalg.cholesky(K + 1e-6 * np.eye(len(self.Z)))  # Add jitter for stability
         # Solve for alpha using forward and backward substitution
         alpha = np.linalg.solve(L.T, np.linalg.solve(L, self.y))
         # Solve for v = L^(-1) * k
