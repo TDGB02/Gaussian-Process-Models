@@ -76,9 +76,7 @@ class GaussianProcess:
         l, sigma_f, sigma_n = params
         K = self.compute_kernel(self.X, l, sigma_n) + sigma_f**2 * jnp.eye(len(self.X))
         L = jnp.linalg.cholesky(K + 1e-6 * jnp.eye(len(self.X)))  # Use JAX's Cholesky
-
         alpha = jax.scipy.linalg.solve_triangular(L.T, jax.scipy.linalg.solve_triangular(L, self.y, lower=True), lower=False)
-
         return 0.5 * jnp.dot(self.y.T, alpha) + jnp.sum(jnp.log(jnp.diagonal(L))) + 0.5 * len(self.X) * jnp.log(2 * jnp.pi)
 
     def fit(self):
@@ -118,7 +116,7 @@ class GaussianProcess:
         
         return mean, var
     
-    def optimise(self, max_iter=10000, Plot_Hist=False):
+    def optimise(self, n_epocs=10000, Plot_Hist=False):
         # Ensure the parameters are JAX arrays
         params = jnp.array([self.l, self.sigma_f, self.sigma_n])
         
@@ -128,10 +126,12 @@ class GaussianProcess:
         loss_history = []
         time_history_ADAM = []
         start = time.time() 
-        
+        batch_size = len(self.X) * 0.05
+        n_batch = len(self.X) // batch_size
 
         time_budget = 10.
-        for i in range(max_iter):
+        # Run the Adam optimizer
+        for epoch in range(n_epocs):
             val, gradients = value_and_grad(params)
             params = self.adam_optimizer.update(gradients, params)
             loss_history.append(val)
