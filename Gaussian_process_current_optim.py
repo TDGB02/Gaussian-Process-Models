@@ -15,27 +15,61 @@ class ADAM:
         self.m = None
         self.v = None
         self.t = 0
+        self.lr_max = 1e-2
+        self.lr_min = 1e-6
         self.param_history = []  # Store parameter history for tracking
-
-    def update(self, gradients, params):
+        self.prev_f_val = float('inf')  # To track objective function value
+    
+    def update(self, gradients, params, f_val=None, tol_f=1e-6, tol_g=1e-6, tol_x=1e-6):
+        # Initialize moment vectors if not already initialized
         if self.m is None:
             self.m = jnp.zeros_like(params)
         if self.v is None:
             self.v = jnp.zeros_like(params)
         
+        # Update timestep and apply decay to learning rate
         self.t += 1
+        # use exponential decay for learning rate, with max and min values
+        self.lr = self.lr_max - (self.lr_max - self.lr_min) * jnp.exp(-self.t)
+         
+        # Update biased first and second moment estimates
         self.m = self.beta1 * self.m + (1 - self.beta1) * gradients
         self.v = self.beta2 * self.v + (1 - self.beta2) * (gradients ** 2)
         
-        # Bias-corrected moments
+        # Compute bias-corrected first and second moments
         m_hat = self.m / (1 - self.beta1 ** self.t)
         v_hat = self.v / (1 - self.beta2 ** self.t)
         
-        # Update parameters
-        #self.param_history.append(params.copy())
-        #print(f"Iteration {self.t}, Parameters: {params}")
-        params -= self.lr * m_hat / (jnp.sqrt(v_hat) + self.epsilon)
-        return params
+        
+        # Parameter update step
+        step = self.lr * m_hat / (jnp.sqrt(v_hat) + self.epsilon)
+        params -= step
+        
+        # Check termination criteria if f_val is provided
+        if f_val is not None:
+            f_change = abs(f_val - self.prev_f_val)
+            grad_norm = jnp.linalg.norm(gradients)
+            step_norm = jnp.linalg.norm(step)
+
+            # Update previous function value for next comparison
+            self.prev_f_val = f_val
+
+            # Check if any termination criterion is met
+            if f_change < tol_f:
+                print("Terminating on function change tolerance")
+                return params, True
+            if grad_norm < tol_g:
+                print("Terminating on gradient norm tolerance")
+                return params, True
+            if step_norm < tol_x:
+                print("Terminating on step size tolerance")
+                return params, True
+
+        # Save parameter state for tracking
+        self.param_history.append(params.copy())
+        
+        return params, False  # Return params and a flag indicating whether to continue
+
 
         
 class RBF_Kernel:
@@ -81,21 +115,24 @@ class GaussianProcess:
         self.sigma_n = np.random.uniform(1e-9, 1e-6) # Random noise variance within [1e-9, 1e-6]
         if self.optimizer == "L-BFGS-B":
             result = minimize(self.negative_log_likelihood, x0=[self.l, self.sigma_f, self.sigma_n], method=self.optimizer)
+            print("NLL after optimization L-BFGS-B:", self.negative_log_likelihood(result.x))
             self.l, self.sigma_f, self.sigma_n = result.x
 
         elif self.optimizer == "CG":
             result = minimize(self.negative_log_likelihood, x0=[self.l, self.sigma_f, self.sigma_n], method=self.optimizer)
+            print("NLL after optimization CG:", self.negative_log_likelihood(result.x))
             self.l, self.sigma_f, self.sigma_n = result.x
             
         elif self.optimizer == "ADAM":
             self.adam_optimizer = ADAM(learning_rate=0.001)
             result = self.optimise()
+            print("NLL after optimization ADAM:", self.negative_log_likelihood(result))
             self.l, self.sigma_f, self.sigma_n = result
             
         
 
         self.K = self.compute_kernel(self.X, self.l, self.sigma_n) + self.sigma_f**2 * jnp.eye(len(self.X))
-        print(f"Training complete. Optimal length scale: {self.l:.2f}, Signal variance: {self.sigma_f:.2f}, Noise variance: {self.sigma_n:.2f}")
+        #print(f"Training complete. Optimal length scale: {self.l:.2f}, Signal variance: {self.sigma_f:.2f}, Noise variance: {self.sigma_n:.2f}")
 
 
     def predict(self, X_new):
@@ -103,7 +140,7 @@ class GaussianProcess:
         K = K_new[:len(self.X), :len(self.X)] 
         k = K_new[:len(self.X), -1]  
         # Cholesky decomposition of the kernel matrix K
-        L = np.linalg.cholesky(K + 1e-6 * np.eye(len(self.X)))  # Add jitter for stability
+        L = np.linalg.cholesky(K + 1e-3 * np.eye(len(self.X)))  # Add jitter for stability
         # Solve for alpha using forward and backward substitution
         alpha = np.linalg.solve(L.T, np.linalg.solve(L, self.y))
         # Solve for v = L^(-1) * k
@@ -116,11 +153,9 @@ class GaussianProcess:
         return mean, var
     
     def optimise(self, max_iter=10000, Plot_Hist=False):
-        # Set initial parameters as a JAX arra
+        # Set initial parameters as a JAX array
         params = jnp.array([self.l, self.sigma_f, self.sigma_n])
-        print(params)
 
-        print(self.negative_log_likelihood(params))
         # JIT compile the value and gradient computation for efficiency
         value_and_grad = jax.jit(jax.value_and_grad(self.negative_log_likelihood))
 
@@ -129,19 +164,31 @@ class GaussianProcess:
         time_history_ADAM = []
         start = time.time()
 
-        # Set up time budget
+        # Set up time budget and tolerance values
         time_budget = 10.0
+        tol_f = 1e-1
+        tol_g = 1e-1
+        tol_x = 1e-1
+
         for i in range(max_iter):
             # Compute loss and gradients
             val, gradients = value_and_grad(params)
-            # Update parameters using ADAM
-            params = self.adam_optimizer.update(gradients, params)
+            
+            # Update parameters using ADAM with termination checks
+            params, terminate = self.adam_optimizer.update(gradients, params, f_val=val, tol_f=tol_f, tol_g=tol_g, tol_x=tol_x)
             
             # Track loss and time
             loss_history.append(val)
             time_history_ADAM.append(time.time() - start)
 
+            # Check termination flag and time budget
+            if terminate:
+                print("Termination criterion met on iteration", i)
+                #Must use clip otherwise negative parameters will cause -> not a positive definite matrix
+                params = jnp.clip(params, 1e-6, None)
+                break
             if time.time() - start > time_budget:
+                print("Time budget exceeded.")
                 break
 
         # Plot the loss history if requested
@@ -149,16 +196,16 @@ class GaussianProcess:
             plt.figure(figsize=(10, 6))
             plt.plot(time_history_ADAM, loss_history, lw=2)
             plt.yscale("log")
-            plt.legend()
             plt.xlabel("Time (s)")
             plt.ylabel("Loss")
             plt.grid()
-            plt.title("Adam optimizer with Random Restart")
+            plt.title("Adam Optimizer with Dynamic Termination")
             plt.show()
 
         # Update final parameters with optimized values
         self.l, self.sigma_f, self.sigma_n = params
         return params
+
 
     def plot(self, f=None, x_range=(0, 10), n_points=1000, xlabel="$x$", ylabel="$f(x)$", title="GP Regression", legend_labels=None):
         # Generate the test points (x) in the specified range
@@ -236,19 +283,22 @@ class SparseGaussianProcess:
 
         if self.optimizer == "L-BFGS-B":
             result = minimize(self.negative_log_likelihood, x0=[self.l, self.sigma_f, self.sigma_n], method=self.optimizer)
-            self.l, self.sigma_f, self.sigma_n = result.x
+            params = result.x
+            params = jnp.clip(params, 1e-6, None)
+            self.l, self.sigma_f, self.sigma_n = params
 
         elif self.optimizer == "CG":
             result = minimize(self.negative_log_likelihood, x0=[self.l, self.sigma_f, self.sigma_n], method=self.optimizer)
-            self.l, self.sigma_f, self.sigma_n = result.x
+            params = result.x
+            params = jnp.clip(params, 1e-6, None)
+            self.l, self.sigma_f, self.sigma_n = params
             
         elif self.optimizer == "ADAM":
             self.adam_optimizer = ADAM(learning_rate=0.001)
             result = self.optimise()
             self.l, self.sigma_f, self.sigma_n = result
             
-        
-
+    
         self.K = self.compute_kernel(self.Z, self.l, self.sigma_n) + self.sigma_f**2 * jnp.eye(len(self.Z))
         print(f"Training complete. Optimal length scale: {self.l:.2f}, Signal variance: {self.sigma_f:.2f}, Noise variance: {self.sigma_n:.2f}")
 
@@ -275,26 +325,36 @@ class SparseGaussianProcess:
         params = jnp.array([self.l, self.sigma_f, self.sigma_n])
 
         # JIT compile the value and gradient computation for efficiency
-        value_and_grad = jax.jit(jax.value_and_grad(self.negative_log_likelihood))
+        value_and_grad = jax.value_and_grad(self.negative_log_likelihood)
 
         # Track loss history if needed for plotting
         loss_history = []
         time_history_ADAM = []
         start = time.time()
 
-        # Set up time budget
+        # Set up time budget and tolerance values
         time_budget = 10.0
+        tol_f = 1e-6
+        tol_g = 1e-6
+        tol_x = 1e-6
+
         for i in range(max_iter):
             # Compute loss and gradients
             val, gradients = value_and_grad(params)
-            # Update parameters using ADAM
-            params = self.adam_optimizer.update(gradients, params)
+            
+            # Update parameters using ADAM with termination checks
+            params, terminate = self.adam_optimizer.update(gradients, params, f_val=val, tol_f=tol_f, tol_g=tol_g, tol_x=tol_x)
             
             # Track loss and time
             loss_history.append(val)
             time_history_ADAM.append(time.time() - start)
 
+            # Check termination flag and time budget
+            if terminate:
+                print("Termination criterion met ADAM.")
+                break
             if time.time() - start > time_budget:
+                print("Time budget exceeded ADAM.")
                 break
 
         # Plot the loss history if requested
@@ -302,11 +362,10 @@ class SparseGaussianProcess:
             plt.figure(figsize=(10, 6))
             plt.plot(time_history_ADAM, loss_history, lw=2)
             plt.yscale("log")
-            plt.legend()
             plt.xlabel("Time (s)")
             plt.ylabel("Loss")
             plt.grid()
-            plt.title("Adam optimizer with Random Restart")
+            plt.title("Adam Optimizer with Dynamic Termination")
             plt.show()
 
         # Update final parameters with optimized values
@@ -365,7 +424,7 @@ if __name__ == "__main__":
 
 
     n_points = 20
-    X_train = np.random.uniform(-5., 5., n_points).reshape(-1, 1)  # 20 points between -5 and 5
+    X_train = np.random.uniform(-5, 5, n_points).reshape(-1, 1)  # 20 points between -5 and 5
     y_train = np.sin(X_train) + 0.2 * np.random.randn(n_points, 1)  # Sinusoidal with noise
 
     # Points to predict (for visualization)
@@ -373,9 +432,10 @@ if __name__ == "__main__":
     n_inducing_points = 10  # or any other number less than n_points
     Z = X_train[np.random.choice(len(X_train), n_inducing_points, replace=False)]
     # Initialize and fit the Gaussian Process model
-    gp = SparseGaussianProcess(X_train, y_train,Z, optimizer="CG")
-    gp = GaussianProcess(X_train, y_train, optimizer="ADAM")
-    gp.fit()
+    gp = SparseGaussianProcess(X_train, y_train,Z, optimizer="ADAM")
+    for opti in ["L-BFGS-B", "CG", "ADAM"]:
+        gp = GaussianProcess(X_train, y_train, optimizer=opti)
+        gp.fit()
 
     # Predict the mean and standard deviation for the test points
     means = []
@@ -388,8 +448,8 @@ if __name__ == "__main__":
     means = np.array(means)
     stds = np.array(stds)
 
-    print("Means:", means)
-    print("Standard Deviations:", stds)
+    #print("Means:", means)
+    #print("Standard Deviations:", stds)
 
     # Plot the GP regression results
     '''gp.plot(f=true_function, x_range=(-5, 5), n_points=1000, 
