@@ -5,7 +5,8 @@ import jax
 import jax.numpy as jnp
 from jax import grad, jit
 import time
-
+import jax.numpy as jnp
+from typing import Optional, Tuple
 class ADAM:
     def __init__(self, learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-8):
         self.lr = learning_rate
@@ -37,7 +38,73 @@ class ADAM:
         params -= self.lr * m_hat / (jnp.sqrt(v_hat) + self.epsilon)
         return params
 
+
+  
+
+
+class FastGPAdam:
+    """
+    Highly optimized ADAM implementation for GP hyperparameter optimization.
+    Key optimizations:
+    1. Pre-compiled update function using JAX
+    2. Minimized memory allocations
+    3. Simplified state management
+    4. Removed unnecessary computations
+    """
+    def __init__(self, learning_rate: float = 0.01):
+        self.lr = learning_rate
+        # Fixed values commonly used in ADAM - no need to make configurable for GP
+        self.beta1 = 0.9
+        self.beta2 = 0.999
+        self.epsilon = 1e-8
         
+        # Single initialization of state
+        self.t = 0
+        self.m = None
+        self.v = None
+        
+        # JIT compile the core update computation
+        self._update_step = jit(self._compute_update)
+    
+    @staticmethod
+    @jit
+    def _compute_update(m: jnp.ndarray, v: jnp.ndarray, grad: jnp.ndarray, 
+                       beta1: float, beta2: float, t: int, lr: float, 
+                       eps: float) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        """
+        Core update computation, JIT compiled for speed.
+        Returns updated moments directly.
+        """
+        m = beta1 * m + (1 - beta1) * grad
+        v = beta2 * v + (1 - beta2) * (grad * grad)
+        
+        # Compute bias corrections and update in one step
+        correction1 = 1 - beta1 ** t
+        correction2 = 1 - beta2 ** t
+        step = lr * (m / correction1) / (jnp.sqrt(v / correction2) + eps)
+        
+        return m, v, step
+
+    def update(self, grad: jnp.ndarray, params: jnp.ndarray) -> jnp.ndarray:
+        """
+        Single optimization step.
+        Minimized operations and memory allocations.
+        """
+        if self.m is None:
+            # Initialize state vectors just once
+            self.m = jnp.zeros_like(grad)
+            self.v = jnp.zeros_like(grad)
+        
+        self.t += 1
+        # Compute update in a single JIT-compiled step
+        self.m, self.v, step = self._update_step(
+            self.m, self.v, grad, self.beta1, self.beta2, 
+            self.t, self.lr, self.epsilon)
+        
+        # Update parameters ensuring positivity
+        return jnp.maximum(params - step, 1e-8)
+    
+
 class RBF_Kernel:
     def __init__(self, X1, X2=None):
         self.X1 = X1
@@ -88,7 +155,7 @@ class GaussianProcess:
             self.l, self.sigma_f, self.sigma_n = result.x
             
         elif self.optimizer == "ADAM":
-            self.adam_optimizer = ADAM(learning_rate=0.001)
+            self.adam_optimizer = GPAdam(learning_rate=0.001)
             result = self.optimise()
             self.l, self.sigma_f, self.sigma_n = result
             
@@ -241,11 +308,21 @@ class SparseGaussianProcess:
             self.l, self.sigma_f, self.sigma_n = result.x
             
         elif self.optimizer == "ADAM":
-            self.adam_optimizer = ADAM(learning_rate=0.001)
+            self.adam_optimizer = FastGPAdam(learning_rate=0.001)
             result = self.optimise()
             self.l, self.sigma_f, self.sigma_n = result
             
-        
+        elif self.optimizer == "ADAM-SCIPY":
+            from scipy.optimize import minimize
+            result = minimize(self.negative_log_likelihood, 
+                            x0=[self.l, self.sigma_f, self.sigma_n],
+                            method='adam',
+                            options={'learning_rate': 0.001,
+                                    'maxiter': 1000,
+                                    'beta1': 0.9,
+                                    'beta2': 0.999,
+                                    'epsilon': 1e-8})
+            self.l, self.sigma_f, self.sigma_n = result.x
 
         self.K = self.compute_kernel(self.Z, self.l, self.sigma_n) + self.sigma_f**2 * jnp.eye(len(self.Z))
         print(f"Training complete. Optimal length scale: {self.l:.2f}, Signal variance: {self.sigma_f:.2f}, Noise variance: {self.sigma_n:.2f}")
