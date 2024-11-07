@@ -71,7 +71,6 @@ class ADAM:
         return params, False  # Return params and a flag indicating whether to continue
 
 
-        
 class RBF_Kernel:
     def __init__(self, X1, X2=None):
         self.X1 = X1
@@ -103,7 +102,7 @@ class GaussianProcess:
     def negative_log_likelihood(self, params):
         l, sigma_f, sigma_n = params
         K = self.compute_kernel(self.X, l, sigma_n) + sigma_f**2 * jnp.eye(len(self.X))
-        L = jnp.linalg.cholesky(K + 1e-6 * jnp.eye(len(self.X)))  # Use JAX's Cholesky
+        L = jnp.linalg.cholesky(K + 1e-9 * jnp.eye(len(self.X)))  # Use JAX's Cholesky
 
         alpha = jax.scipy.linalg.solve_triangular(L.T, jax.scipy.linalg.solve_triangular(L, self.y, lower=True), lower=False)
 
@@ -132,7 +131,7 @@ class GaussianProcess:
         
 
         self.K = self.compute_kernel(self.X, self.l, self.sigma_n) + self.sigma_f**2 * jnp.eye(len(self.X))
-        #print(f"Training complete. Optimal length scale: {self.l:.2f}, Signal variance: {self.sigma_f:.2f}, Noise variance: {self.sigma_n:.2f}")
+        return self.sigma_f
 
 
     def predict(self, X_new):
@@ -300,7 +299,7 @@ class SparseGaussianProcess:
             
     
         self.K = self.compute_kernel(self.Z, self.l, self.sigma_n) + self.sigma_f**2 * jnp.eye(len(self.Z))
-        print(f"Training complete. Optimal length scale: {self.l:.2f}, Signal variance: {self.sigma_f:.2f}, Noise variance: {self.sigma_n:.2f}")
+        return self.sigma_f
 
 
     def predict(self, X_new):
@@ -448,11 +447,5 @@ if __name__ == "__main__":
     means = np.array(means)
     stds = np.array(stds)
 
-    #print("Means:", means)
-    #print("Standard Deviations:", stds)
-
-    # Plot the GP regression results
-    '''gp.plot(f=true_function, x_range=(-5, 5), n_points=1000, 
-            xlabel="X", ylabel="y", 
-            title="GP Regression on Sinusoidal Data", 
-            legend_labels=["True Function (sin)", "Training Data", "GP Mean", "95% Confidence Interval"])'''
+    print("Means:", means)
+    print("Standard Deviations:", stds)
