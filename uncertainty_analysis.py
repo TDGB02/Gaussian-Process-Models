@@ -6,11 +6,11 @@ import os
 import seaborn as sns
 sns.set_theme()
 # Create Figures directory if it doesn't exist
-if not os.path.exists('Figures/Jonathan_results'):
-    os.makedirs('Figures/Jonathan_results')
+if not os.path.exists('Figures'):
+    os.makedirs('Figures')
 
 # Read the data
-df = pd.read_csv('results.csv')
+df = pd.read_csv('results_albin.csv')
 
 # Calculate correlations between RMSE and Uncertainty for each model
 correlations = {}
@@ -63,7 +63,7 @@ ax2.set_xlim(-1, 1)  # Correlation ranges from -1 to 1
 
 
 plt.tight_layout()
-plt.savefig('Figures/Jonathan_results/uncertainty_correlation_analysis.png', bbox_inches='tight', dpi=300)
+plt.savefig('Figures/Final/uncertainty_correlation_analysis.png', bbox_inches='tight', dpi=300)
 plt.close()
 
 # Print detailed correlation analysis
