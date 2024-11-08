@@ -25,7 +25,7 @@ def plot_accuracy(df, colors):
     plt.grid(True, alpha=0.3)
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.tight_layout()
-    plt.savefig('Figures/Final/accuracy_analysis.png', bbox_inches='tight', dpi=300)
+    plt.savefig('Figures/Jonathan_results/accuracy_analysis.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 def plot_training_time(df, colors):
@@ -54,7 +54,7 @@ def plot_training_time(df, colors):
     ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 
     plt.tight_layout()
-    plt.savefig('Figures/Final/time_analysis.png', bbox_inches='tight', dpi=300)
+    plt.savefig('Figures/Jonathan_results/time_analysis.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 def plot_memory_usage(df, colors):
@@ -69,7 +69,7 @@ def plot_memory_usage(df, colors):
     plt.grid(True, alpha=0.3)
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.tight_layout()
-    plt.savefig('Figures/Final/memory_analysis.png', bbox_inches='tight', dpi=300)
+    plt.savefig('Figures/Jonathan_results/memory_analysis.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 def plot_uncertainty_analysis(df, colors):
@@ -92,7 +92,7 @@ def plot_uncertainty_analysis(df, colors):
     plt.grid(True, alpha=0.3)
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.tight_layout()
-    plt.savefig('Figures/Final/uncertainty_analysis.png', bbox_inches='tight', dpi=300)
+    plt.savefig('Figures/Jonathan_results/uncertainty_analysis.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 def plot_uncertainty_distribution(df):
@@ -103,7 +103,7 @@ def plot_uncertainty_distribution(df):
     plt.suptitle('')
     plt.ylabel('Average Uncertainty')
     plt.tight_layout()
-    plt.savefig('Figures/Final/uncertainty_distribution.png', bbox_inches='tight', dpi=300)
+    plt.savefig('Figures/Jonathan_results/uncertainty_distribution.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 def plot_calibration_analysis(df):
@@ -122,7 +122,7 @@ def plot_calibration_analysis(df):
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig('Figures/Final/calibration_analysis.png', bbox_inches='tight')
+    plt.savefig('Figures/Jonathan_results/calibration_analysis.pdf', bbox_inches='tight')
     plt.close()
 
 def plot_signal_variance(df):
@@ -140,7 +140,7 @@ def plot_signal_variance(df):
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig('Figures/Final/signal_variance_analysis.png', bbox_inches='tight')
+    plt.savefig('Figures/Jonathan_results/signal_variance_analysis.pdf', bbox_inches='tight')
     plt.close()
 
 def plot_performance_summary(df):
@@ -180,13 +180,13 @@ def plot_performance_summary(df):
         ax.legend()
     
     plt.tight_layout()
-    plt.savefig('Figures/Final/performance_summary.png', bbox_inches='tight')
+    plt.savefig('Figures/Jonathan_results/performance_summary.pdf', bbox_inches='tight')
     plt.close()
 
 def main():
     """Main function to run all analyses"""
     # Read data
-    df = pd.read_csv('results_albin.csv')
+    df = pd.read_csv('results.csv')
     
     # Setup
     colors = setup_plotting()
