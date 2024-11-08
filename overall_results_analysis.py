@@ -25,36 +25,27 @@ def plot_accuracy(df, colors):
     plt.grid(True, alpha=0.3)
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.tight_layout()
-    plt.savefig('Figures/Final/accuracy_analysis.png', bbox_inches='tight', dpi=300)
+    plt.savefig('Figures/Jonathan_results/accuracy_analysis.png', bbox_inches='tight', dpi=300)
     plt.close()
 
 def plot_training_time(df, colors):
-    """Plot Training Time vs Dataset Size (split plots)"""
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-
-    # GPR ADAM plot
-    gpr_adam_data = df[df['Model'] == 'GPR ADAM']
-    ax1.plot(gpr_adam_data['Dataset Size'], gpr_adam_data['Time'], 'o-', 
-             label='GPR ADAM', color=colors[0])
-    ax1.set_xlabel('Dataset Size')
-    ax1.set_ylabel('Training Time (s)')
-    ax1.set_title('Training Time: GPR ADAM')
-    ax1.grid(True, alpha=0.3)
-    ax1.legend()
-
-    # Other models
-    other_models = df[df['Model'] != 'GPR ADAM']
-    for i, (model, group) in enumerate(other_models.groupby('Model')):
-        ax2.plot(group['Dataset Size'], group['Time'], 'o-', 
-                 label=model, color=colors[(i+1) % len(colors)])
-    ax2.set_xlabel('Dataset Size')
-    ax2.set_ylabel('Training Time (s)')
-    ax2.set_title('Training Time: Other Models')
-    ax2.grid(True, alpha=0.3)
-    ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-
+    """Plot Training Time vs Dataset Size (all models, log scale)"""
+    plt.figure(figsize=(10, 6))
+    
+    # Plot all models
+    for i, (model, group) in enumerate(df.groupby('Model')):
+        plt.plot(group['Dataset Size'], group['Time'], 'o-', 
+                label=model, color=colors[i % len(colors)])
+    
+    plt.xlabel('Dataset Size')
+    plt.ylabel('Training Time (s)')
+    plt.title('Training Time vs Dataset Size')
+    plt.grid(True, alpha=0.3)
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.yscale('log')  # Set y-axis to logarithmic scale
+    
     plt.tight_layout()
-    plt.savefig('Figures/Final/time_analysis.png', bbox_inches='tight', dpi=300)
+    plt.savefig('Figures/Jonathan_results/time_analysis.png', bbox_inches='tight', dpi=300)
     plt.close()
 
 def plot_memory_usage(df, colors):
@@ -70,7 +61,7 @@ def plot_memory_usage(df, colors):
     plt.grid(True, alpha=0.3)
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.tight_layout()
-    plt.savefig('Figures/Final/memory_analysis.png', bbox_inches='tight', dpi=300)
+    plt.savefig('Figures/Jonathan_results/memory_analysis.png', bbox_inches='tight', dpi=300)
     plt.close()
 
 def plot_uncertainty_analysis(df, colors):
@@ -93,7 +84,7 @@ def plot_uncertainty_analysis(df, colors):
     plt.grid(True, alpha=0.3)
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.tight_layout()
-    plt.savefig('Figures/Final/uncertainty_analysis.png', bbox_inches='tight', dpi=300)
+    plt.savefig('Figures/Jonathan_results/uncertainty_analysis.png', bbox_inches='tight', dpi=300)
     plt.close()
 
 def plot_uncertainty_distribution(df):
@@ -104,7 +95,7 @@ def plot_uncertainty_distribution(df):
     plt.suptitle('')
     plt.ylabel('Average Uncertainty')
     plt.tight_layout()
-    plt.savefig('Figures/Final/uncertainty_distribution.png', bbox_inches='tight', dpi=300)
+    plt.savefig('Figures/Jonathan_results/uncertainty_distribution.png', bbox_inches='tight', dpi=300)
     plt.close()
 
 def plot_calibration_analysis(df):
@@ -123,7 +114,7 @@ def plot_calibration_analysis(df):
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig('Figures/Final/calibration_analysis.png', bbox_inches='tight')
+    plt.savefig('Figures/Jonathan_results/calibration_analysis.png', bbox_inches='tight')
     plt.close()
 
 def plot_signal_variance(df):
@@ -141,7 +132,7 @@ def plot_signal_variance(df):
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig('Figures/Final/signal_variance_analysis.png', bbox_inches='tight')
+    plt.savefig('Figures/Jonathan_results/signal_variance_analysis.png', bbox_inches='tight')
     plt.close()
 
 def plot_performance_reliability(df):
@@ -216,7 +207,7 @@ def plot_performance_reliability(df):
     ax_time.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
     
     plt.tight_layout()
-    plt.savefig('Figures/performance_reliability.pdf', bbox_inches='tight', dpi=300)
+    plt.savefig('Figures/Jonathan_results/performance_reliability.png', bbox_inches='tight', dpi=300)
     plt.close()
 
 def plot_performance_summary(df):
@@ -257,13 +248,13 @@ def plot_performance_summary(df):
         ax.legend()
     
     plt.tight_layout()
-    plt.savefig('Figures/Final/performance_summary.png', bbox_inches='tight')
+    plt.savefig('Figures/Jonathan_results/performance_summary.png', bbox_inches='tight')
     plt.close()
 
 def main():
     """Main function to run all analyses"""
     # Read data
-    df = pd.read_csv('results_albin.csv')
+    df = pd.read_csv('results.csv')
     
     # Setup
     colors = setup_plotting()
