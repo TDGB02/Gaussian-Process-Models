@@ -4,7 +4,7 @@ import numpy as np
 import seaborn as sns
 sns.set_theme()
 # Read the data
-df = pd.read_csv('results_albin.csv')
+df = pd.read_csv('results.csv')
 
 # Create figure for GPR analysis
 plt.figure(figsize=(15, 6))
@@ -68,7 +68,7 @@ for ax in [ax1, ax2]:
     ax.set_ylim(top=ymax * 1.1)  # Add 10% padding at top
 
 plt.tight_layout()
-plt.savefig('Figures/gpr_detailed_analysis.png', bbox_inches='tight', dpi=300)
+plt.savefig('Figures/Jonathan_results/gpr_detailed_analysis.png', bbox_inches='tight', dpi=300)
 plt.close()
 
 # Print analysis for GPR models
