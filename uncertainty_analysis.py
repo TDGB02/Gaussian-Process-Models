@@ -5,6 +5,19 @@ from scipy import stats
 import os
 import seaborn as sns
 sns.set_theme()
+
+# Set font size
+font_size = 20
+plt.rcParams.update({
+    'font.size': font_size,
+    'axes.titlesize': font_size,
+    'axes.labelsize': font_size,
+    'xtick.labelsize': font_size,
+    'ytick.labelsize': font_size,
+    'legend.fontsize': font_size,
+    'figure.titlesize': font_size
+})
+
 # Create Figures directory if it doesn't exist
 if not os.path.exists('Figures'):
     os.makedirs('Figures')
@@ -21,20 +34,20 @@ for model in df['Model'].unique():
 
 # Create figure with two subplots: scatter plot and correlation summary
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8), 
-                              gridspec_kw={'width_ratios': [2, 1]})
+                               gridspec_kw={'width_ratios': [2, 1]})
 
 # Plot 1: Scatter plot (similar to before but cleaner)
 colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
 for i, (model, group) in enumerate(df.groupby('Model')):
     sizes = group['Dataset Size'] * 2
     ax1.scatter(group['RMSE'], group['Avg Uncertainty'], 
-               s=sizes, label=model, color=colors[i % len(colors)], alpha=0.6)
-    
+                s=sizes, label=model, color=colors[i % len(colors)], alpha=0.6)
 
 ax1.set_xlabel('RMSE (log scale)')
 ax1.set_ylabel('Average Uncertainty')
 ax1.set_title('Error vs Uncertainty Relationship\n(Circle size indicates dataset size)')
 ax1.set_xscale('log')
+ax1.set_yscale('log')
 ax1.grid(True, alpha=0.3)
 ax1.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 
@@ -56,14 +69,13 @@ for i, (bar, p_val) in enumerate(zip(bars, p_values)):
     value = bar.get_width()
     ax2.text(value, i, 
              f' {value:.2f}{"*" if p_val < 0.05 else ""}', 
-             va='center')
+             va='center', fontsize=font_size)
 
 ax2.grid(True, alpha=0.3)
 ax2.set_xlim(-1, 1)  # Correlation ranges from -1 to 1
 
-
 plt.tight_layout()
-plt.savefig('Figures/Final/uncertainty_correlation_analysis.png', bbox_inches='tight', dpi=300)
+plt.savefig('Figures/Final/uncertainty_correlation_analysis.pdf', bbox_inches='tight', dpi=300)
 plt.close()
 
 # Print detailed correlation analysis

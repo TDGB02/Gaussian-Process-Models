@@ -25,7 +25,7 @@ def plot_accuracy(df, colors):
     plt.grid(True, alpha=0.3)
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.tight_layout()
-    plt.savefig('Figures/Jonathan_results/accuracy_analysis.png', bbox_inches='tight', dpi=300)
+    plt.savefig('Figures/Final/accuracy_analysis.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 def plot_training_time(df, colors):
@@ -45,7 +45,7 @@ def plot_training_time(df, colors):
     plt.yscale('log')  # Set y-axis to logarithmic scale
     
     plt.tight_layout()
-    plt.savefig('Figures/Jonathan_results/time_analysis.png', bbox_inches='tight', dpi=300)
+    plt.savefig('Figures/Final/time_analysis.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 def plot_memory_usage(df, colors):
@@ -61,7 +61,7 @@ def plot_memory_usage(df, colors):
     plt.grid(True, alpha=0.3)
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.tight_layout()
-    plt.savefig('Figures/Jonathan_results/memory_analysis.png', bbox_inches='tight', dpi=300)
+    plt.savefig('Figures/Final/memory_analysis.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 def plot_uncertainty_analysis(df, colors):
@@ -84,7 +84,7 @@ def plot_uncertainty_analysis(df, colors):
     plt.grid(True, alpha=0.3)
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.tight_layout()
-    plt.savefig('Figures/Jonathan_results/uncertainty_analysis.png', bbox_inches='tight', dpi=300)
+    plt.savefig('Figures/Final/uncertainty_analysis.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 def plot_uncertainty_distribution(df):
@@ -95,7 +95,7 @@ def plot_uncertainty_distribution(df):
     plt.suptitle('')
     plt.ylabel('Average Uncertainty')
     plt.tight_layout()
-    plt.savefig('Figures/Jonathan_results/uncertainty_distribution.png', bbox_inches='tight', dpi=300)
+    plt.savefig('Figures/Final/uncertainty_distribution.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 def plot_calibration_analysis(df):
@@ -114,7 +114,7 @@ def plot_calibration_analysis(df):
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig('Figures/Jonathan_results/calibration_analysis.png', bbox_inches='tight')
+    plt.savefig('Figures/Final/calibration_analysis.pdf', bbox_inches='tight')
     plt.close()
 
 def plot_signal_variance(df):
@@ -132,7 +132,7 @@ def plot_signal_variance(df):
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig('Figures/Jonathan_results/signal_variance_analysis.png', bbox_inches='tight')
+    plt.savefig('Figures/Final/signal_variance_analysis.pdf', bbox_inches='tight')
     plt.close()
 
 def plot_performance_reliability(df):
@@ -207,11 +207,27 @@ def plot_performance_reliability(df):
     ax_time.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
     
     plt.tight_layout()
-    plt.savefig('Figures/Jonathan_results/performance_reliability.png', bbox_inches='tight', dpi=300)
+    plt.savefig('Figures/Final/performance_reliability.pdf', bbox_inches='tight', dpi=300)
     plt.close()
+
+import matplotlib.pyplot as plt
 
 def plot_performance_summary(df):
     """Create comprehensive performance summary"""
+    
+    # Set font size
+    font_size = 20
+    plt.rcParams.update({
+        'font.size': font_size,
+        'axes.titlesize': font_size,
+        'axes.labelsize': font_size,
+        'xtick.labelsize': font_size,
+        'ytick.labelsize': font_size,
+        'legend.fontsize': font_size,
+        'figure.titlesize': font_size,
+       
+    })
+    
     fig, axes = plt.subplots(2, 2, figsize=(15, 12))
     colors = setup_plotting()
     
@@ -227,20 +243,26 @@ def plot_performance_summary(df):
     axes[0,0].set_ylabel('RMSE')
     axes[0,0].set_yscale('log')
     axes[0,0].set_title('Model Accuracy')
+    # Set title font size
+    axes[0,0].title.set_fontsize(font_size)
     axes[0,0].grid(True)
     
     axes[0,1].set_ylabel('Coverage')
     axes[0,1].axhline(y=0.95, color='r', linestyle='--', label='Expected')
     axes[0,1].set_title('Model Calibration')
+    axes[0,1].title.set_fontsize(font_size)
+
     axes[0,1].grid(True)
     
     axes[1,0].set_ylabel('Time (s)')
     axes[1,0].set_yscale('log')
     axes[1,0].set_title('Computational Efficiency')
+    axes[1,0].title.set_fontsize(font_size)
     axes[1,0].grid(True)
     
     axes[1,1].set_ylabel('Signal Variance')
     axes[1,1].set_title('Predictive Noise')
+    axes[1,1].title.set_fontsize(font_size)
     axes[1,1].grid(True)
     
     for ax in axes.flat:
@@ -248,13 +270,14 @@ def plot_performance_summary(df):
         ax.legend()
     
     plt.tight_layout()
-    plt.savefig('Figures/Jonathan_results/performance_summary.png', bbox_inches='tight')
+    plt.savefig('Figures/Final/performance_summary.pdf', bbox_inches='tight')
     plt.close()
+
 
 def main():
     """Main function to run all analyses"""
     # Read data
-    df = pd.read_csv('results.csv')
+    df = pd.read_csv('results_albin.csv')
     
     # Setup
     colors = setup_plotting()
