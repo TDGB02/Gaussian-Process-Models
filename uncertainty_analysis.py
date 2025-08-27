@@ -23,7 +23,7 @@ if not os.path.exists('Figures'):
     os.makedirs('Figures')
 
 # Read the data
-df = pd.read_csv('results_albin.csv')
+df = pd.read_csv('experimental_results.csv')
 
 # Calculate correlations between RMSE and Uncertainty for each model
 correlations = {}

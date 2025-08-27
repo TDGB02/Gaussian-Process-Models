@@ -277,7 +277,7 @@ def plot_performance_summary(df):
 def main():
     """Main function to run all analyses"""
     # Read data
-    df = pd.read_csv('results_albin.csv')
+    df = pd.read_csv('experimental_results.csv')
     
     # Setup
     colors = setup_plotting()
